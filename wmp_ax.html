@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="author" content="Pel" />
+	<meta name="copyright" content="2011(c)webpluz.org" />
+	<title>Audio Player from WebPlus</title>
+	<style type="text/css">
+		#container{ width:250px; border:1px solid #000; font:12px/150% Simsun,Arial; padding:5px; }
+		#title{ float:left; width:150px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+		#time{ float:right; }
+		#range{ display:block; margin:0; padding:0; width:250px; clear:both; }
+		.button{ display:inline-block; border:1px solid #000; text-align:center; padding:3px; text-decoration:none; color:#000; }
+		.button:hover{ border-color:#966; color:#966; }
+		#play{ width:40px; }
+		#volume{ width:75px; vertical-align:bottom; }
+		#playlist{ border:1px solid #000; margin:5px 0 0; padding:0; list-style-position:inside; }
+		#playlist li{ margin:0; padding:1px 5px; cursor:pointer; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+		#playlist li:hover{ color:#966; }
+		#playlist li.selected{ background:#eee; color:#966; }
+	</style>
+	<link href="html5inputs.css" type="text/css" rel="stylesheet" />
+	<style type="text/css">
+		body{font:13px/1 Arial,san-serif;}
+		.new_input_sample,.result_view{padding:5px;border:outset 1px #999;width:500px;}
+		.nolist{list-style:none;}
+		.nolist li{margin-bottom:0.5em;}
+	</style>
+	<script type="text/javascript" src="potato.js"></script>
+	<script type="text/javascript" src="html5inputs.js"></script></head>
+<body>
+	<div id="container">
+		<div id="title">Empty</div>
+		<div id="time">--:-- / --:--</div>
+		<input id="range" type="range" min="0" max="100" step="any" value="0" />
+		<!--<a id="prev" class="button" href="###">上一首</a>-->
+		<a id="play" class="button" href="###"></a>
+		<!--<a id="next" class="button" href="###">下一首</a>-->
+		音量:<input id="volume" type="range" min="0" max="100" step="any" value="50" />
+		<!--<ol id="playlist">
+		</ol>-->
+	</div>
+	<script type="text/javascript" src="http://pub.idqqimg.com/lib/jx/1.0.2/jx.uiless.min.js"></script>
+	<script type="text/javascript" src="jx.audio.js"></script>
+<script type="text/javascript">
+
+var audioObj,
+	titleEl,
+	timeEl,
+	rangeEl,
+	playEl,
+	volumeEl,
+	paused;
+function initAudio(){
+	var _audio;
+	if(audioObj){ return; } //如果存在,说明已经初始化
+	//if(Jx().Audio){
+		_audio = new ActiveXObject("WMPlayer.OCX.7");
+		// _audio.on('durationchange',onDurationChange);
+		// _audio.on('play',onPlay);
+		// _audio.on('pause',onPause);
+		// _audio.on('ended',onEnded);
+		// _audio.on('error',onError);
+		// _audio.on('timeupdate',onTimeUpdate);
+		// _audio.setVolume(0.5);
+		
+		audioObj=_audio;
+		titleEl=document.getElementById('title');
+		timeEl=document.getElementById('time');
+		rangeEl=document.getElementById('range');
+		playEl=document.getElementById('play');
+		volumeEl=document.getElementById('volume');
+		
+		var c1=html5Inputs(volumeEl),
+			c2=html5Inputs(rangeEl);
+
+
+		// J.event.on(volumeEl,'change',onVolumeChange);
+		// J.event.on(rangeEl,'change',onRangeChange);
+		c1.callback = onVolumeChange;
+		c2.callback = onRangeChange;
+		Jx().event.on(playEl,'click',onPlayButtonClick);
+	// }else{
+	// 	alert('Oops, nice browser.');
+	// 	return;
+	// }
+}
+function loadAudio(url,title){
+	if(!audioObj){ return; }
+	var name=title || url.replace(/^.*\//,'').replace(/[#\?].*$/,'') || 'Unknown';
+	titleEl.innerHTML=name;
+	rangeEl.value=0;
+	rangeEl.disabled=true;
+	timeEl.innerHTML='--:-- / --:--';
+	playEl.innerHTML='加载中';
+	// audioObj.autoplay=true;
+	audioObj.URL = url;
+	audioObj.controls.play();
+	//audioObj.load();
+	paused = false;
+}
+
+function onDurationChange(){
+	console && console.info('canplay');
+	rs=undefined;
+	rangeEl.disabled=false;
+}
+function onPlay(){
+	playEl.innerHTML='暂停';
+	console && console.info('play');
+	rs=undefined;
+}
+function onPause(){
+	playEl.innerHTML='播放';
+}
+function onEnded(){
+	// audioObj.pause();
+	// audioObj.currentTime=0;
+	paused = true;
+	playEl.innerHTML='播放';
+}
+function onError(){
+	rangeEl.disabled=true;
+	titleEl.innerHTML='<span style="color:red">加载错误:'+titleEl.innerHTML+'</span>';
+	playEl.innerHTML='已停止';
+}
+function onTimeUpdate(){
+	var pos=audioObj.getPosition(),
+		dora=audioObj.getDuration();
+	timeEl.innerHTML=formatTime(pos)+' / '+formatTime(dora);
+	//console.info(pos,dora);
+	if(isFinite(dora) && dora>0){
+		rangeEl.value=pos/dora;
+	}
+}
+function onVolumeChange(){
+	if(!audioObj){ return; }
+	audioObj.settings.volume = volumeEl.value;
+}
+function onRangeChange(){
+	// if(!audioObj){ return; }
+	// var buf=audioObj.getBuffered(),
+	// 	dora=audioObj.getDuration();
+	// if(isFinite(dora) && dora>0){
+	// 	var value=rangeEl.value,
+	// 		pos=value*dora;
+	// 	if(pos>buf){
+	// 		pos=buf;
+	// 	}
+	// 	audioObj.setPosition(pos);
+	// }
+	console && console.info(rangeEl.value);
+	audioObj.controls.currentPosition = rangeEl.value;
+}
+function onPlayButtonClick(){
+	if(!audioObj){ return; }
+	if(paused){
+		audioObj.play();
+	}else{
+		audioObj.pause();
+	}
+	paused = !paused;
+}
+function formatTime(sec){
+	if(!isFinite(sec) || sec<0){
+		return '--:--';
+	}else{
+		var m=Math.floor(sec/60),
+			s=Math.floor(sec)%60;
+		return (m<10?'0'+m:m)+':'+(s<10?'0'+s:s);
+	}
+}
+initAudio();
+loadAudio('http://127.0.0.1/wdgsl.mp3','我的歌声里');
+
+</script>
+</body>
+</html>
