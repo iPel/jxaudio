@@ -37,7 +37,7 @@
 			if(ExternalInterface.available){
 				addEventListener(Event.ENTER_FRAME, registerExternalCallback, false);
 			}/*else{
-				load(0, 'wdgsl.mp3');
+				load(0, 'msg.mp3');
 				//setLoop(0, true);
 				play(0);
 				on(0,'timeupdate');
