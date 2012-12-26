@@ -28,132 +28,171 @@
 		<!--<a id="prev" class="button" href="###">上一首</a>-->
 		<a id="play" class="button" href="###"></a>
 		<!--<a id="next" class="button" href="###">下一首</a>-->
-		音量:<input id="volume" type="range" min="0" max="1" step="any" value="0.5" />
+		音量:<input id="volume" type="range" min="0" max="1" step="0.1" value="0.5" />
 		<!--<ol id="playlist">
 		</ol>-->
 	</div>
+	<input id="bufEl" type="text" value="" />
+	<input id="durEl" type="text" value="" />
+	<textarea id="net" style="width:500px;height:500px;"></textarea>
 	<script type="text/javascript" src="http://pub.idqqimg.com/lib/jx/1.0.2/jx.uiless.min.js"></script>
 	<script type="text/javascript" src="jx.audio.js"></script>
+	<script type="text/javascript" src="jx.ui.range.js"></script>
 <script type="text/javascript">
-var audioObj,
-	titleEl,
-	timeEl,
-	rangeEl,
-	playEl,
-	volumeEl,
-	paused;
-function initAudio(){
-	var _audio;
-	if(audioObj){ return; } //如果存在,说明已经初始化
-	if(Jx().Audio){
-		_audio=new (Jx().Audio)();
-		_audio.on('durationchange',onDurationChange);
-		_audio.on('play',onPlay);
-		_audio.on('pause',onPause);
-		_audio.on('ended',onEnded);
-		_audio.on('error',onError);
-		_audio.on('timeupdate',onTimeUpdate);
-		_audio.setVolume(0.5);
-		
-		audioObj=_audio;
-		titleEl=document.getElementById('title');
-		timeEl=document.getElementById('time');
-		rangeEl=document.getElementById('range');
-		playEl=document.getElementById('play');
-		volumeEl=document.getElementById('volume');
-		
-		volumeEl.addEventListener('change',onVolumeChange,false);
-		rangeEl.addEventListener('change',onRangeChange,false);
-		playEl.addEventListener('click',onPlayButtonClick,false);
-	}else{
-		alert('Oops, nice browser.');
-		return;
-	}
-}
-function loadAudio(url,title){
-	if(!audioObj){ return; }
-	var name=title || url.replace(/^.*\//,'').replace(/[#\?].*$/,'') || 'Unknown';
-	titleEl.innerHTML=name;
-	rangeEl.value=0;
-	rangeEl.disabled=true;
-	timeEl.innerHTML='--:-- / --:--';
-	playEl.innerHTML='加载中';
-	// audioObj.autoplay=true;
-	audioObj.play(url);
-	//audioObj.load();
-	paused = false;
-}
-
-function onDurationChange(){
-	console.info('canplay');
-	rs=undefined;
-	rangeEl.disabled=false;
-}
-function onPlay(){
-	playEl.innerHTML='暂停';
-	console.info('play');
-	rs=undefined;
-}
-function onPause(){
-	playEl.innerHTML='播放';
-}
-function onEnded(){
-	// audioObj.pause();
-	// audioObj.currentTime=0;
-	paused = true;
-	playEl.innerHTML='播放';
-}
-function onError(){
-	rangeEl.disabled=true;
-	titleEl.innerHTML='<span style="color:red">加载错误:'+titleEl.innerHTML+'</span>';
-	playEl.innerHTML='已停止';
-}
-function onTimeUpdate(){
-	var pos=audioObj.getPosition(),
-		dora=audioObj.getDuration();
-	timeEl.innerHTML=formatTime(pos)+' / '+formatTime(dora);
-	//console.info(pos,dora);
-	if(isFinite(dora) && dora>0){
-		rangeEl.value=pos/dora;
-	}
-}
-function onVolumeChange(){
-	if(!audioObj){ return; }
-	audioObj.setVolume(volumeEl.value);
-}
-function onRangeChange(){
-	if(!audioObj){ return; }
-	var buf=audioObj.getBuffered(),
-		dora=audioObj.getDuration();
-	if(isFinite(dora) && dora>0){
-		var value=rangeEl.value,
-			pos=value*dora;
-		if(pos>buf){
-			pos=buf;
+Jx().$package(function(J){
+	var list = J.dom.mini('input[type=range]');
+	if(list && list[0] && list[0].type !== 'range'){
+		for(var i=0,len=list.length; i<len; i++){
+			J.ui.range.build(list[i]);
 		}
-		audioObj.setPosition(pos);
 	}
-}
-function onPlayButtonClick(){
-	if(!audioObj){ return; }
-	if(paused){
-		audioObj.play();
-	}else{
-		audioObj.pause();
+});
+Jx().$package(function(J){
+	var audioObj,
+		titleEl,
+		timeEl,
+		rangeEl,
+		playEl,
+		volumeEl,
+		paused;
+	function initAudio(){
+		var _audio;
+		if(audioObj){ return; } //如果存在,说明已经初始化
+		if(Jx().Audio){
+			_audio=new (Jx().Audio)();
+			_audio.on('durationchange',onDurationChange);
+			_audio.on('play',onPlay);
+			_audio.on('pause',onPause);
+			_audio.on('ended',onEnded);
+			_audio.on('error',onError);
+			_audio.on('timeupdate',onTimeUpdate);
+			_audio.setVolume(0.5);
+			
+			audioObj=_audio;
+			titleEl=document.getElementById('title');
+			timeEl=document.getElementById('time');
+			rangeEl=document.getElementById('range');
+			playEl=document.getElementById('play');
+			volumeEl=document.getElementById('volume');
+			
+			J.event.on(volumeEl,'change',onVolumeChange);
+			J.event.on(rangeEl,'change',onRangeChange);
+			J.event.on(playEl,'click',onPlayButtonClick);
+		}else{
+			alert('Oops, nice browser.');
+			return;
+		}
 	}
-	paused = !paused;
-}
-function formatTime(sec){
-	if(!isFinite(sec) || sec<0){
-		return '--:--';
-	}else{
-		var m=Math.floor(sec/60),
-			s=Math.floor(sec)%60;
-		return (m<10?'0'+m:m)+':'+(s<10?'0'+s:s);
+	function loadAudio(url,title){
+		if(!audioObj){ return; }
+		var name=title || url.replace(/^.*\//,'').replace(/[#\?].*$/,'') || 'Unknown';
+		titleEl.innerHTML=name;
+		rangeEl.value=0;
+		// rangeEl.disabled=true;
+		timeEl.innerHTML='--:-- / --:--';
+		playEl.innerHTML='加载中';
+		// audioObj.autoplay=true;
+		audioObj.play(url);
+		//audioObj.load();
+		paused = false;
 	}
-}
-initAudio();
-loadAudio('msg.mp3','msg');
+
+	function onDurationChange(){
+		console.info('canplay');
+		rs=undefined;
+		rangeEl.disabled=false;
+	}
+	function onPlay(){
+		playEl.innerHTML='暂停';
+		console.info('play');
+		rs=undefined;
+	}
+	function onPause(){
+		playEl.innerHTML='播放';
+	}
+	function onEnded(){
+		// audioObj.pause();
+		// audioObj.currentTime=0;
+		paused = true;
+		playEl.innerHTML='播放';
+	}
+	function onError(){
+		rangeEl.disabled=true;
+		titleEl.innerHTML='<span style="color:red">加载错误:'+titleEl.innerHTML+'</span>';
+		playEl.innerHTML='已停止';
+	}
+	function onTimeUpdate(){
+		var pos=audioObj.getPosition(),
+			dora=audioObj.getDuration();
+		timeEl.innerHTML=formatTime(pos)+' / '+formatTime(dora);
+		//console.info(pos,dora);
+		if(isFinite(dora) && dora>0){
+			rangeEl.value=pos/dora;
+		}
+	}
+	function onVolumeChange(){
+		if(!audioObj){ return; }
+		audioObj.setVolume(volumeEl.value);
+	}
+	function onRangeChange(){
+		if(!audioObj){ return; }
+		var buf=audioObj.getBuffered(),
+			dora=audioObj.getDuration();
+		if(isFinite(dora) && dora>0){
+			var value=rangeEl.value,
+				pos=value*dora;
+			if(pos>buf){
+				pos=buf;
+			}
+			audioObj.setPosition(pos);
+		}
+	}
+	function onPlayButtonClick(){
+		if(!audioObj){ return; }
+		if(paused){
+			audioObj.play();
+		}else{
+			audioObj.pause();
+		}
+		paused = !paused;
+	}
+	function formatTime(sec){
+		if(!isFinite(sec) || sec<0){
+			return '--:--';
+		}else{
+			var m=Math.floor(sec/60),
+				s=Math.floor(sec)%60;
+			return (m<10?'0'+m:m)+':'+(s<10?'0'+s:s);
+		}
+	}
+	initAudio();
+	// loadAudio('wdgsl.mp3','msg');
+	loadAudio('http://zhangmenshiting.baidu.com/data2/music/7333129/7333126252000128.mp3?xcode=5645fa29dd1574958218ad8d69e657ae ','bjbj');
+	/*setInterval(function(){
+		if(audioObj){
+			// bufEl.value = audioObj.getBuffered();
+			// durEl.value = audioObj.getDuration();
+			var obj = audioObj._el.network;
+			net.value = 'bandWidth: '+ obj.bandWidth +
+				'\nbitRate: ' + obj.bitRate +
+				'\nbufferingCount: ' + obj.bufferingCount +
+				'\nbufferingProgress: ' + obj.bufferingProgress +
+				'\nbufferingTime: ' + obj.bufferingTime +
+				'\ndownloadProgress: ' + obj.downloadProgress +
+				'\nencodedFrameRate: ' + obj.encodedFrameRate +
+				'\nframeRate: ' + obj.frameRate +
+				'\nframesSkipped: ' + obj.framesSkipped +
+				'\nlostPackets: ' + obj.lostPackets +
+				'\nmaxBandwidth: ' + obj.maxBandwidth +
+				'\nmaxBitRate: ' + obj.maxBitRate +
+				'\nreceivedPackets: ' + obj.receivedPackets +
+				'\nreceptionQuality: ' + obj.receptionQuality +
+				'\nrecoveredPackets: ' + obj.recoveredPackets +
+				'\nsourceProtocol: ' + obj.sourceProtocol;
+			onTimeUpdate();
+		}
+	},16);*/
+});
 </script>
 </body>
 </html>

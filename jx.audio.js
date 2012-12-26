@@ -37,7 +37,6 @@ Jx().$package(function(J){
 
         getBuffered : function(){  },
         getDuration : function(){ throw 'getDuration does not implement a required interface'; },
-        getState : function(){  },
         free : function(){ throw 'free does not implement a required interface'; },
 
         on : function(){  },
@@ -54,13 +53,10 @@ Jx().$package(function(J){
      * @ignore
      */
     var audioModeDetector = function(){
-        return 3;
+        return 2;
         if(window.Audio && (new Audio).canPlayType('audio/mpeg')){ //支持audio
             return AUDIO_MODE.NATIVE;
-        }else if(J.browser.plugins.flash>=9){ //支持flash控件
-            return AUDIO_MODE.FLASH;
-        }else
-        /*if(!!window.ActiveXObject && (function(){
+        }else if(!!window.ActiveXObject && (function(){
                 try{
                     new ActiveXObject("WMPlayer.OCX.7");
                 }catch(e){
@@ -69,37 +65,12 @@ Jx().$package(function(J){
                 return true;
             })()){ //支持wmp控件
             return AUDIO_MODE.WMP;
-        }else*/
-        {
+        }else if(J.browser.plugins.flash>=9){ //支持flash控件
+            return AUDIO_MODE.FLASH;
+        }else{
             return AUDIO_MODE.NONE; //啥都不支持
         }
     };
-
-    var getContainer = function(mode){
-        var _container;
-        return function(mode){
-            if(!_container){
-                var node = document.createElement('div');
-                node.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;margin:0;padding:0;' + (mode === AUDIO_MODE.FLASH ? 'left:0;top:0;' : 'left:-1px;top:-1px;');
-                (document.body || document.documentElement).appendChild(node);
-                if(mode === AUDIO_MODE.FLASH){
-                    node.innerHTML = '<object id="JxAudioObject" name="JxAudioObject" ' + (J.browser.ie ? 'classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"' : 'type="application/x-shockwave-flash" data="jxaudioobject.swf"') + 'width="1" height="1" align="top">\
-                        <param name="movie" value="jxaudioobject.swf" /><param name="allowScriptAccess" value="always" /><param name="allowFullScreen" value="false" /><param name="quality" value="high" /><param name="wmode" value="opaque" />\
-                        </object>';
-                    _container = J.dom.id('JxAudioObject') || window['JxAudioObject'] || document['JxAudioObject'];
-                }else{
-                    _container = node;
-                }
-            }
-            return _container;
-        }
-    }();
-    var getSequence = function(){
-        var _seq = 0;
-        return function(){
-            return _seq++;
-        }
-    }();
 
     switch(audioModeDetector()){
         case AUDIO_MODE.NATIVE:
@@ -109,7 +80,6 @@ Jx().$package(function(J){
                     var el = this._el = new Audio();
                     el.loop = Boolean(option.loop); //default by false
                     /*el.autoplay = option.autoplay !== false; //defalut by true*/
-                    getContainer(AUDIO_MODE.NATIVE).appendChild(el);
                     if(option.src){
                         // el.src = option.src;
                         this.play(option.src);
@@ -171,30 +141,47 @@ Jx().$package(function(J){
                 getDuration : function(){
                     return this._el.duration;
                 },
-                getState : function(){
-                    return this._el.reayState;
-                },
                 free : function(){
                     this._el.pause();
-                    this._el.parentNode.removeChild(this._el);
                     this._el = null;
                 },
                 on : function(event, handler){
-                    this._el.addEventListener(event,handler,false);
+                    J.event.on(this._el,event,handler);
                 },
                 off : function(event, handler){
-                    this._el.removeEventListener(event,handler,false);
+                    J.event.on(this._el,event,handler);
                 }
             });
             break;
         case AUDIO_MODE.FLASH :
+            var getContainer = function(){
+                var _container;
+                return function(){
+                    if(!_container){
+                        var node = document.createElement('div');
+                        node.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;margin:0;padding:0;left:0;top:0;';
+                        (document.body || document.documentElement).appendChild(node);
+                        node.innerHTML = '<object id="JxAudioObject" name="JxAudioObject" ' + (J.browser.ie ? 'classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"' : 'type="application/x-shockwave-flash" data="jxaudioobject.swf"') + 'width="1" height="1" align="top">\
+                            <param name="movie" value="jxaudioobject.swf" /><param name="allowScriptAccess" value="always" /><param name="allowFullScreen" value="false" /><param name="quality" value="high" /><param name="wmode" value="opaque" />\
+                            </object>';
+                        _container = J.dom.id('JxAudioObject') || window['JxAudioObject'] || document['JxAudioObject'];
+                    }
+                    return _container;
+                }
+            }();
+            var getSequence = function(){
+                var _seq = 0;
+                return function(){
+                    return _seq++;
+                }
+            }();
             var addToQueue = function(audioObject){
                 var tryInvokeCount = 0,
                     queue = [],
                     flashReady = false;
                 var tryInvoke = function(){
                     ++tryInvokeCount;
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     if(container.audioLoad && typeof container.audioLoad === 'function'){
                         flashReady = true;
                         for(var i=0,len=queue.length;i<len;i++){
@@ -243,13 +230,13 @@ Jx().$package(function(J){
                     option = option || {};
                     this._loop = Boolean(option.loop); //default by false
                     this._paused = true;
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     if(option.src){
                         this.play(option.src);
                     }
                 },
                 play : function(url){
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     if(url){
                         this._src = url;
                         this._paused = false;
@@ -264,13 +251,13 @@ Jx().$package(function(J){
                     }
                 },
                 pause : function(){
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     this._paused = true;
                     container.audioPause && container.audioPause(this._seq);
                 },
                 stop : function(){
                     this._paused = true;
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     container.audioStop && container.audioStop(this._seq);
                 },
 
@@ -281,7 +268,7 @@ Jx().$package(function(J){
                     if(isFinite(value)){
                         this._volume = Math.max(0,Math.min(value,1));
                         this._muted = false;
-                        var container = getContainer(AUDIO_MODE.FLASH);
+                        var container = getContainer();
                         container.audioSetVolume && container.audioSetVolume(this._seq, this._volume);
                     }
                 },
@@ -290,7 +277,7 @@ Jx().$package(function(J){
                 },
                 setLoop : function(value){
                     this._loop = value !== false;
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     container.audioSetLoop && container.audioSetLoop(this._loop);
                 },
                 getMute : function(){
@@ -298,35 +285,31 @@ Jx().$package(function(J){
                 },
                 setMute : function(value){
                     this._muted = value !== false;
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     container.audioSetVolume && container.audioSetVolume(this._seq, this.getVolume());
                 },
                 getPosition : function(){
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     return container.audioGetPosition && container.audioGetPosition(this._seq)/1000 || 0;
                 },
                 setPosition : function(value){
                     if(!isNaN(value)){
-                        var container = getContainer(AUDIO_MODE.FLASH);
+                        var container = getContainer();
                         container.audioSetPosition(this._seq, Math.max(0,value)*1000);
                     }
                 },
 
                 getBuffered : function(){
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     return container.audioGetBuffered && container.audioGetBuffered(this._seq)/1000 || 0;
                 },
                 getDuration : function(){
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     return container.audioGetDuration && container.audioGetDuration(this._seq)/1000 || 0;
-                },
-                getState : function(){
-                    var container = getContainer(AUDIO_MODE.FLASH);
-                    return container.audioGetState && container.audioGetState(this._seq) || 0;
                 },
                 free : function(){
                     this._paused = true;
-                    var container = getContainer(AUDIO_MODE.FLASH);
+                    var container = getContainer();
                     container.audioFree && container.audioFree(this._seq);
                 },
 
@@ -337,7 +320,7 @@ Jx().$package(function(J){
                     }
                     if(!this._handler[event] || !this._handler.length){
                         this._handler[event] = [handler];
-                        var container = getContainer(AUDIO_MODE.FLASH);
+                        var container = getContainer();
                         container.audioOn && container.audioOn(this._seq, event);
                     }else{
                         if(-1 === J.array.indexOf(this._handler[event],handler)){
@@ -350,7 +333,7 @@ Jx().$package(function(J){
                     if(this._handler && this._handler[event] && -1 !== (index = J.array.indexOf(this._handler[event],handler))){
                         this._handler[event].splice(index,1);
                         if(!this._handler.length){
-                            var container = getContainer(AUDIO_MODE.FLASH);
+                            var container = getContainer();
                             container.audioOff && container.audioOff(this._seq, event);
                             delete this._handler[event];
                         }
@@ -359,7 +342,7 @@ Jx().$package(function(J){
 
                 _sync : function(){
                     if(this._src){
-                        var container = getContainer(AUDIO_MODE.FLASH),
+                        var container = getContainer(),
                             seq = this._seq;
                         container.audioLoad(seq, this._src);
                         var volume = this.getVolume();
@@ -377,6 +360,109 @@ Jx().$package(function(J){
                         }
                     }
                 }
+            });
+            break;
+        case AUDIO_MODE.WMP:
+            J.Audio = new J.Class({extend:BaseAudio},{
+                init : function(option){
+                    option = option || {};
+                    var el = this._el = new ActiveXObject("WMPlayer.OCX.7");
+                    this._loop = Boolean(option.loop); //default by false
+                    /*el.autoplay = option.autoplay !== false; //defalut by true*/
+                    if(option.src){
+                        // el.src = option.src;
+                        this.play(option.src);
+                    }
+                },
+                play : function(url){
+                    if(url){
+                        var a = document.createElement('a');
+                        a.href = url;
+                        url = J.dom.getHref(a);
+                        this._el.URL = J.dom.getHref(a);
+                    }
+                    if(this._el.playState === 2){ //paused
+                        this._el.controls.play();
+                    }
+                },
+                pause : function(){
+                    this._el.controls.pause();
+                },
+                stop : function(){
+                    this._el.controls.stop();
+                },
+
+                getVolume : function(){
+                    return !this._el.settings.mute && this._el.settings.volume / 100 || 0;
+                },
+                setVolume : function(value){
+                    if(isFinite(value)){
+                        this._el.settings.volume = Math.max(0,Math.min(value,1)) * 100;
+                        this._el.settings.mute = false;
+                    }
+                },
+                getLoop : function(){
+                    return this._loop;
+                },
+                setLoop : function(value){
+                    this._loop = value !== false;
+                },
+                getMute : function(){
+                    return this._el.settings.mute;
+                },
+                setMute : function(value){
+                    this._el.settings.mute = value !== false;
+                },
+                getPosition : function(){
+                    return this._el.controls.currentPosition;
+                },
+                setPosition : function(value){
+                    if(!isNaN(value)){
+                        this._el.controls.currentPosition = Math.max(0,value);
+                    }
+                },
+                getBuffered : function(){
+                    return this._el.network.downloadProgress * .01 * this.getDuration();
+                },
+                getDuration : function(){
+                    return this._el.currentMedia.duration;
+                },
+                free : function(){
+                    this._el.controls.stop();
+                    this._el = null;
+                },
+
+                on : function(event, handler){
+                    /*if(!this._handler){
+                        this._handler = {};
+                    }*/
+                    switch(event){
+                        case 'timeupdate':
+                            this._el.onpositionchange = handler;
+                            break;
+                        /*case 'error':
+                            this._el.Error = handler;
+                            break;*/
+                        default:
+                            break;
+                    }
+/*                            CANPLAY : 'canplay',
+        CANPLAYTHROUGH : 'canplaythrough',
+        DURATIONCHANGE : 'durationchange',
+        ENDED : 'ended',
+        LOADEDDATA : 'loadeddata',
+        LOADSTART : 'loadstart',
+        PAUSE : 'pause',
+        PLAY : 'play',
+        PLAYING : 'playing',
+        PROGRESS : 'progress',
+        SEEKED : 'seeked',
+        SEEKING : 'seeking',
+        VOLUMECHANGE : 'volumechange',
+        WAITING : 'waiting'*/
+
+                 },
+                off : function(){  }
             });
             break;
         default:

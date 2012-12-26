@@ -23,7 +23,7 @@
 	Jx().$package('test',function(J){
 		// (new J.Audio()).play('http://0.web.qstatic.com/webqqpic/sound/msg.mp3');
 		// new J.Audio({src:'http://0.web.qstatic.com/webqqpic/sound/msg.mp3'});
-		var audio = new J.Audio();
+		window.audio = new J.Audio();
 		audio.on('abort',function(){console.log(Date.now(),'abort')});
 		audio.on('canplay',function(){console.log(Date.now(),'canplay')});
 		audio.on('canplaythrough',function(){console.log(Date.now(),'canplaythrough')});
@@ -46,7 +46,7 @@
 		audio.on('timeupdate',function(){console.log(Date.now(),'timeupdate')});
 		audio.on('volumechange',function(){console.log(Date.now(),'volumechange')});
 		audio.on('waiting',function(){console.log(Date.now(),'waiting')});
-		audio.play('msg.mp3');
+		audio.play('wdgsl.mp3');
 		// audio.pause();
 		// audio.on('canplaythrough',function(){
 		// 	audio.setPosition(5);
