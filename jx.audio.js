@@ -72,6 +72,32 @@ Jx().$package(function(J){
         }
     };
 
+    var getContainer = function(){
+        var _container;
+        return function(mode){
+            if(!_container){
+                var node = document.createElement('div');
+                node.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;margin:0;padding:0;left:0;top:0;';
+                (document.body || document.documentElement).appendChild(node);
+                if(mode == AUDIO_MODE.FLASH){
+                    node.innerHTML = '<object id="JxAudioObject" name="JxAudioObject" ' + (J.browser.ie ? 'classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"' : 'type="application/x-shockwave-flash" data="jxaudioobject.swf"') + 'width="1" height="1" align="top">\
+                        <param name="movie" value="jxaudioobject.swf" /><param name="allowScriptAccess" value="always" /><param name="allowFullScreen" value="false" /><param name="quality" value="high" /><param name="wmode" value="opaque" />\
+                        </object>';
+                    _container = J.dom.id('JxAudioObject') || window['JxAudioObject'] || document['JxAudioObject'];
+                }else{
+                    _container = node;
+                }
+            }
+            return _container;
+        }
+    }();
+    var getSequence = function(){
+        var _seq = 0;
+        return function(){
+            return _seq++;
+        }
+    }();
+
     switch(audioModeDetector()){
         case AUDIO_MODE.NATIVE:
             J.Audio = new J.Class({extend:BaseAudio},{
@@ -146,35 +172,14 @@ Jx().$package(function(J){
                     this._el = null;
                 },
                 on : function(event, handler){
-                    J.event.on(this._el,event,handler);
+                    this._el.addEventListener(event,handler,false);
                 },
                 off : function(event, handler){
-                    J.event.on(this._el,event,handler);
+                    this._el.removeEventListener(event,handler,false);
                 }
             });
             break;
         case AUDIO_MODE.FLASH :
-            var getContainer = function(){
-                var _container;
-                return function(){
-                    if(!_container){
-                        var node = document.createElement('div');
-                        node.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;margin:0;padding:0;left:0;top:0;';
-                        (document.body || document.documentElement).appendChild(node);
-                        node.innerHTML = '<object id="JxAudioObject" name="JxAudioObject" ' + (J.browser.ie ? 'classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"' : 'type="application/x-shockwave-flash" data="jxaudioobject.swf"') + 'width="1" height="1" align="top">\
-                            <param name="movie" value="jxaudioobject.swf" /><param name="allowScriptAccess" value="always" /><param name="allowFullScreen" value="false" /><param name="quality" value="high" /><param name="wmode" value="opaque" />\
-                            </object>';
-                        _container = J.dom.id('JxAudioObject') || window['JxAudioObject'] || document['JxAudioObject'];
-                    }
-                    return _container;
-                }
-            }();
-            var getSequence = function(){
-                var _seq = 0;
-                return function(){
-                    return _seq++;
-                }
-            }();
             var addToQueue = function(audioObject){
                 var tryInvokeCount = 0,
                     queue = [],
@@ -230,7 +235,7 @@ Jx().$package(function(J){
                     option = option || {};
                     this._loop = Boolean(option.loop); //default by false
                     this._paused = true;
-                    var container = getContainer();
+                    var container = getContainer(AUDIO_MODE.FLASH);
                     if(option.src){
                         this.play(option.src);
                     }
@@ -318,7 +323,7 @@ Jx().$package(function(J){
                         this._handler = {};
                         registerEvent(this);
                     }
-                    if(!this._handler[event] || !this._handler.length){
+                    if(!this._handler[event] || !this._handler[event].length){
                         this._handler[event] = [handler];
                         var container = getContainer();
                         container.audioOn && container.audioOn(this._seq, event);
@@ -332,7 +337,7 @@ Jx().$package(function(J){
                     var index;
                     if(this._handler && this._handler[event] && -1 !== (index = J.array.indexOf(this._handler[event],handler))){
                         this._handler[event].splice(index,1);
-                        if(!this._handler.length){
+                        if(!this._handler[event].length){
                             var container = getContainer();
                             container.audioOff && container.audioOff(this._seq, event);
                             delete this._handler[event];
@@ -365,8 +370,13 @@ Jx().$package(function(J){
         case AUDIO_MODE.WMP:
             J.Audio = new J.Class({extend:BaseAudio},{
                 init : function(option){
+                    this._seq = getSequence();
                     option = option || {};
-                    var el = this._el = new ActiveXObject("WMPlayer.OCX.7");
+                    var wrap = document.createElement('div');
+                    getContainer(AUDIO_MODE.WMP).appendChild(wrap);
+                    wrap.innerHTML = '<object id="WMPObject'+this._seq+'" classid="CLSID:6BF52A52-394A-11D3-B153-00C04F79FAA6" standby="" type="application/x-oleobject" width="0" height="0">\
+                        <param name="AutoStart" value="true"><param name="ShowControls" value="0"><param name="uiMode" value="none"></object>';
+                    var el = this._el = J.dom.id('WMPObject'+this._seq) || window['WMPObject'+this._seq];
                     this._loop = Boolean(option.loop); //default by false
                     /*el.autoplay = option.autoplay !== false; //defalut by true*/
                     if(option.src){
@@ -433,12 +443,31 @@ Jx().$package(function(J){
                 },
 
                 on : function(event, handler){
-                    /*if(!this._handler){
+                    if(!this._handler){
                         this._handler = {};
-                    }*/
+                    }
                     switch(event){
                         case 'timeupdate':
-                            this._el.onpositionchange = handler;
+                            this._el.attachEvent('PositionChange', handler);
+                            break;
+                        case 'waiting':
+                        case 'playing':
+                            if(!(this._handler['waiting'] || (this._handler['waiting'] = [])).length && !(this._handler['playing'] || (this._handler['playing'] = [])).length){
+                                var context = this;
+                                this._onBuffering = function(isStart){
+                                    var events;
+                                    if(isStart){
+                                        events = context._handler['waiting'];
+                                    }else{
+                                        events = context._handler['playing'];
+                                    }
+                                    for(var i=0,len=events.length;i<len;i++){
+                                        events[i].call(context);
+                                    }
+                                };
+                                this._el.attachEvent('Buffering', this._onBuffering);
+                            }
+                            this._handler[event].push(handler);
                             break;
                         /*case 'error':
                             this._el.Error = handler;
@@ -454,15 +483,38 @@ Jx().$package(function(J){
         LOADSTART : 'loadstart',
         PAUSE : 'pause',
         PLAY : 'play',
-        PLAYING : 'playing',
         PROGRESS : 'progress',
         SEEKED : 'seeked',
         SEEKING : 'seeking',
-        VOLUMECHANGE : 'volumechange',
-        WAITING : 'waiting'*/
+        VOLUMECHANGE : 'volumechange'*/
 
-                 },
-                off : function(){  }
+                },
+                off : function(event, handler){
+                    if(!this._handler){
+                        return;
+                    }
+
+                    var index;
+                    if(this._handler && this._handler[event] && -1 !== (index = J.array.indexOf(this._handler[event],handler))){
+                        this._handler[event].splice(index,1);
+                    }
+
+                    switch(event){
+                        case 'timeupdate':
+                            this._el.detachEvent('PositionChange', handler);
+                            break;
+                        case 'waiting':
+                        case 'playing':
+                            if(!(this._handler['waiting'] && this._handler['waiting'].length) && !(this._handler['playing'] && this._handler['playing'].length)){
+                                this._el.detachEvent('Buffering', this._onBuffering);
+                            }
+                            break;
+                        /*case 'error':
+                            this._el.Error = handler;
+                            break;*/
+                        default:
+                            break;
+                }
             });
             break;
         default:
