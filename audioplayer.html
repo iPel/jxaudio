@@ -36,6 +36,12 @@
 	<script type="text/javascript" src="jx.audio.js"></script>
 	<script type="text/javascript" src="jx.ui.range.js"></script>
 <script type="text/javascript">
+if(!window.console){
+	window.console = {
+		info : function(){},
+		log : function(){}
+	};
+}
 Jx().$package(function(J){
 	var list = J.dom.mini('input[type=range]');
 	if(list && list[0] && list[0].type !== 'range'){
@@ -59,7 +65,7 @@ Jx().$package(function(J){
 			_audio=new (Jx().Audio)();
 
 		var audio = _audio;
-		audio.on('abort',function(){console.log(Date.now(),'abort')});
+		/*audio.on('abort',function(){console.log(Date.now(),'abort')});
 		audio.on('canplay',function(){console.log(Date.now(),'canplay')});
 		audio.on('canplaythrough',function(){console.log(Date.now(),'canplaythrough')});
 		audio.on('durationchange',function(){console.log(Date.now(),'durationchange')});
@@ -80,7 +86,7 @@ Jx().$package(function(J){
 		// audio.on('suspend',function(){console.log(Date.now(),'suspend')});
 		audio.on('timeupdate',function(){console.log(Date.now(),'timeupdate')});
 		audio.on('volumechange',function(){console.log(Date.now(),'volumechange')});
-		audio.on('waiting',function(){console.log(Date.now(),'waiting')});
+		audio.on('waiting',function(){console.log(Date.now(),'waiting')});*/
 
 
 			_audio.on('durationchange',onDurationChange);
@@ -190,8 +196,8 @@ Jx().$package(function(J){
 		}
 	}
 	initAudio();
-	// loadAudio('wdgsl.mp3','msg');
-	loadAudio('http://127.0.0.1/wdgsl.mp3','xx');
+	loadAudio('wdgsl.mp3','msg');
+	// loadAudio('','xx');
 });
 </script>
 </body>

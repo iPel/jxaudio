@@ -409,6 +409,7 @@ Jx().$package(function(J){
                     if(isFinite(value)){
                         this._el.settings.volume = Math.max(0,Math.min(value,1)) * 100;
                         this._el.settings.mute = false;
+                        this._fire('volumechange');
                     }
                 },
                 getLoop : function(){
@@ -422,6 +423,7 @@ Jx().$package(function(J){
                 },
                 setMute : function(value){
                     this._el.settings.mute = value !== false;
+                    this._fire('volumechange');
                 },
                 getPosition : function(){
                     return this._el.controls.currentPosition;
@@ -449,51 +451,96 @@ Jx().$package(function(J){
                     switch(event){
                         case 'timeupdate':
                             this._el.attachEvent('PositionChange', handler);
+                            if(!(this._handler[event] || (this._handler[event] = [])).length){
+
+                            }
+                            this._handler[event].push(handler);
+                            this._startPoll();
                             break;
                         case 'waiting':
                         case 'playing':
-                            if(!(this._handler['waiting'] || (this._handler['waiting'] = [])).length && !(this._handler['playing'] || (this._handler['playing'] = [])).length){
+                            if(!(this._handler['waiting'] || (this._handler['waiting'] = [])).length &&
+                                !(this._handler['playing'] || (this._handler['playing'] = [])).length){
                                 var context = this;
                                 this._onBuffering = function(isStart){
-                                    var events;
-                                    if(isStart){
-                                        events = context._handler['waiting'];
-                                    }else{
-                                        events = context._handler['playing'];
+                                    if(!(context._el.currentMedia || 0).sourceURL){
+                                        return;
                                     }
-                                    for(var i=0,len=events.length;i<len;i++){
-                                        events[i].call(context);
+                                    if(isStart){
+                                        context._fire('waiting');
+                                    }else{
+                                        context._fire('playing');
                                     }
                                 };
                                 this._el.attachEvent('Buffering', this._onBuffering);
                             }
                             this._handler[event].push(handler);
                             break;
-                        /*case 'error':
-                            this._el.Error = handler;
-                            break;*/
+                        case 'error':
+                            this._el.attachEvent('MediaError',handler);
+                            break;
+                        case 'progress':
+                        case 'ended':
+                        case 'canplay':
+                            if(!(this._handler['progress'] || (this._handler['progress'] = [])).length &&
+                                !(this._handler['ended'] || (this._handler['ended'] = [])).length &&
+                                !(this._handler['canplay'] || (this._handler['canplay'] = [])).length){
+                                var context = this;
+                                this._onPlayStateChange = function(state){
+                                    if(!(context._el.currentMedia || 0).sourceURL){
+                                        return;
+                                    }
+                                    console.log('playstate:',state);
+                                    if(state === 6){ //Buffering
+                                        context._fire('progress');
+                                    }else if(state === 10){ //Ready
+                                        context._fire('canplay');
+                                    }else if(state === 8 || state === 1){ //MediaEnded, Stopped
+                                        context._fire('ended');
+                                    }
+                                }
+                                this._el.attachEvent('PlayStateChange', this._onPlayStateChange);
+                            }
+                            this._handler[event].push(handler);
+                            break;
+                        case 'loadstart':
+                        case 'loadeddata':
+                            if(!(this._handler['loadstart'] || (this._handler['loadstart'] = [])).length &&
+                                !(this._handler['loadeddata'] || (this._handler['loadeddata'] = [])).length){
+                                var context = this;
+                                this._onOpenStateChange = function(state){
+                                    if(!(context._el.currentMedia || 0).sourceURL){
+                                        return;
+                                    }
+                                    console.log('openstate:',state);
+                                    if(state === 10){
+                                        context._fire('loadstart');
+                                    }else if(state === 12){
+                                        context._fire('loadeddata');
+                                    }
+                                }
+                                this._el.attachEvent('OpenStateChange', this._onOpenStateChange);
+                            }
+                            this._handler[event].push(handler);
+                            break;
                         default:
                             break;
                     }
-/*                            CANPLAY : 'canplay',
+/*
         CANPLAYTHROUGH : 'canplaythrough',
         DURATIONCHANGE : 'durationchange',
-        ENDED : 'ended',
-        LOADEDDATA : 'loadeddata',
-        LOADSTART : 'loadstart',
+
         PAUSE : 'pause',
         PLAY : 'play',
-        PROGRESS : 'progress',
         SEEKED : 'seeked',
         SEEKING : 'seeking',
-        VOLUMECHANGE : 'volumechange'*/
+        */
 
                 },
                 off : function(event, handler){
                     if(!this._handler){
                         return;
                     }
-
                     var index;
                     if(this._handler && this._handler[event] && -1 !== (index = J.array.indexOf(this._handler[event],handler))){
                         this._handler[event].splice(index,1);
@@ -514,6 +561,31 @@ Jx().$package(function(J){
                             break;*/
                         default:
                             break;
+                    }
+                },
+                _fire : function(event){
+                    var events;
+                    if(!this._handler || !(events = this._handler[event])){
+                        return;
+                    }
+                    for(var i=0,len=events.length;i<len;i++){
+                        events[i].call(this);
+                    }
+                },
+                _startPoll : function(){
+                    if(this._timer !== undefined){
+                        return;
+                    }
+                    var context = this;
+                    this._timer = setInterval(function(){
+                        if((context._handler['timeupdate'] || 0).length){
+                            context._fire('timeupdate');
+                        }
+                    },500);
+                },
+                _stopPoll : function(){
+                    clearInterval(this._timer);
+                    delete this._timer;
                 }
             });
             break;
