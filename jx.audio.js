@@ -17,30 +17,28 @@ Jx().$package(function(J){
         $E = J.event,
         $B = J.browser;
 
+    var EMPTY_FUNC = function(){ return 0; };
     var BaseAudio = J.Class({
-        init : function(){ throw 'init does not implement a required interface'; },
-        //load : function(){ throw 'load does not implement a required interface'; },
-        play : function(){ throw 'play does not implement a required interface'; },
-        pause : function(){ throw 'pause does not implement a required interface'; },
-        stop : function(){ throw 'stop does not implement a required interface'; },
+        init : function(){ throw 'BaseAudio does not implement a required interface'; },
+        play : EMPTY_FUNC,
+        pause : EMPTY_FUNC,
+        stop : EMPTY_FUNC,
 
-        getVolume : function(){  },
-        setVolume : function(value){  },
-        getLoop : function(){  },
-        setLoop : function(){  },
-        /*getAutoplay : function(){  },
-        setAutoplay : function(){  },*/
-        setMute : function(){  },
-        getMute : function(){  },
-        getPosition : function(){ throw 'getPosition does not implement a required interface'; },
-        setPosition : function(){ throw 'setPosition does not implement a required interface'; },
+        getVolume : EMPTY_FUNC,
+        setVolume : EMPTY_FUNC,
+        getLoop : EMPTY_FUNC,
+        setLoop : EMPTY_FUNC,
+        setMute : EMPTY_FUNC,
+        getMute : EMPTY_FUNC,
+        getPosition : EMPTY_FUNC,
+        setPosition : EMPTY_FUNC,
 
-        getBuffered : function(){  },
-        getDuration : function(){ throw 'getDuration does not implement a required interface'; },
-        free : function(){ throw 'free does not implement a required interface'; },
+        getBuffered : EMPTY_FUNC,
+        getDuration : EMPTY_FUNC,
+        free : EMPTY_FUNC,
 
-        on : function(){  },
-        off : function(){  }
+        on : EMPTY_FUNC,
+        off : EMPTY_FUNC
     });
 
     var AUDIO_MODE = {
@@ -99,7 +97,7 @@ Jx().$package(function(J){
 
     switch(audioModeDetector()){
         case AUDIO_MODE.NATIVE:
-            J.Audio = J.Class({extend:BaseAudio},{
+            var NativeAudio = J.Class({extend:BaseAudio},{
                 init : function(option){
                     option = option || {};
                     var el = this._el = new Audio();
@@ -177,6 +175,45 @@ Jx().$package(function(J){
                     this._el.removeEventListener(event,handler,false);
                 }
             });
+            if(J.platform.iPad || J.platform.iPhone){
+                var playingStack = [];
+                var stackPop = function(){
+                    var len = playingStack.length;
+                    playingStack.pop().off('ended', stackPop);
+                    if(len >= 2){
+                        NativeAudio.prototype.play.call(playingStack[len - 2]);
+                    }
+                };
+                J.Audio = J.Class({extend:NativeAudio},{
+                    init : function(option){
+                        NativeAudio.prototype.init.call(this, option);
+                    },
+                    play : function(url){
+                        var len = playingStack.length;
+                        if(len && playingStack[len - 1] !== this){
+                            // NativeAudio.prototype.pause.call(playingStack[len - 1], url);
+                            var index = J.array.indexOf(playingStack, this);
+                            if(-1 !== index){
+                                playingStack.splice(index, 1);
+                            }else{
+                                this.on('ended', stackPop);
+                            }
+                        }
+                        playingStack.push(this);
+                        NativeAudio.prototype.play.call(this, url);
+                    },
+                    pause : function(){
+                        for(var i = 0, len = playingStack.length; i < len; i++){
+                            playingStack[i].off('ended', stackPop);
+                        }
+                        playingStack = [];
+                        NativeAudio.prototype.pause.call(this);
+                    }
+                });
+            }else{
+                J.Audio = NativeAudio;
+            }
+
             break;
         case AUDIO_MODE.FLASH :
             var addToQueue = function(audioObject){
@@ -398,9 +435,7 @@ Jx().$package(function(J){
                     if(this._el.playState !== 3){ //not playing
                         this._el.controls.play();
                     }
-                    if((this._handler['timeupdate'] && this._handler['timeupdate'].length) ||
-                        (this._handler['canplaythrough'] && this._handler['canplaythrough'].length) ||
-                        (this._handler['durationchange'] && this._handler['durationchange'].length)){
+                    if(this._hasPoll()){
                         this._startPoll();
                     }
                 },
@@ -469,8 +504,7 @@ Jx().$package(function(J){
                         case 'timeupdate':
                             this._startPoll();
                         case 'seeked':
-                            if(!(this._handler['timeupdate'] || (this._handler['timeupdate'] = [])).length &&
-                                !(this._handler['seeked'] || (this._handler['seeked'] = [])).length){
+                            if(!this._hasPositionChange()){
                                 this._onPositionChange = function(position){
                                     context._fire('timeupdate');
                                     context._fire('seeked');
@@ -480,8 +514,7 @@ Jx().$package(function(J){
                             break;
                         case 'waiting':
                         case 'playing':
-                            if(!(this._handler['waiting'] || (this._handler['waiting'] = [])).length &&
-                                !(this._handler['playing'] || (this._handler['playing'] = [])).length){
+                            if(!this._hasBuffering()){
                                 this._onBuffering = function(isStart){
                                     if(!(context._el.currentMedia || 0).sourceURL){
                                         return;
@@ -505,10 +538,7 @@ Jx().$package(function(J){
                         case 'ended':
                         case 'play':
                         case 'pause':
-                            if(!(this._handler['progress'] || (this._handler['progress'] = [])).length &&
-                                !(this._handler['ended'] || (this._handler['ended'] = [])).length &&
-                                !(this._handler['play'] || (this._handler['play'] = [])).length &&
-                                !(this._handler['pause'] || (this._handler['pause'] = [])).length){
+                            if(!this._hasPlayStateChange()){
                                 this._onPlayStateChange = function(state){
                                     if(!(context._el.currentMedia || 0).sourceURL){
                                         return;
@@ -539,9 +569,7 @@ Jx().$package(function(J){
                         case 'loadstart':
                         case 'loadeddata':
                         case 'canplay':
-                            if(!(this._handler['loadstart'] || (this._handler['loadstart'] = [])).length &&
-                                !(this._handler['loadeddata'] || (this._handler['loadeddata'] = [])).length &&
-                                !(this._handler['canplay'] || (this._handler['canplay'] = [])).length){
+                            if(!this._hasOpenStateChange()){
                                 this._onOpenStateChange = function(state){
                                     if(!(context._el.currentMedia || 0).sourceURL){
                                         return;
@@ -577,16 +605,18 @@ Jx().$package(function(J){
                     }
 
                     switch(event){
+                        case 'timeupdate':
+                            if(!this._hasPoll()){
+                                this._stopPoll();
+                            }
                         case 'seeked':
-                            if(!(this._handler['timeupdate'] && this._handler['timeupdate'].length) &&
-                                !(this._handler['seeked'] && this._handler['seeked'].length)){
+                            if(!this._hasPositionChange()){
                                 this._el.detachEvent('PositionChange', this._onPositionChange);
                             }
                             break;
                         case 'waiting':
                         case 'playing':
-                            if(!(this._handler['waiting'] && this._handler['waiting'].length) &&
-                                !(this._handler['playing'] && this._handler['playing'].length)){
+                            if(!this._hasBuffering()){
                                 this._el.detachEvent('Buffering', this._onBuffering);
                             }
                             break;
@@ -597,32 +627,20 @@ Jx().$package(function(J){
                         case 'ended':
                         case 'play':
                         case 'pause':
-                            if(!(this._handler['progress'] && this._handler['progress'].length) &&
-                                !(this._handler['ended'] && this._handler['ended'].length) &&
-                                !(this._handler['play'] && this._handler['play'].length) &&
-                                !(this._handler['pause'] && this._handler['pause'].length)){
+                            if(!this._hasPlayStateChange()){
                                 this._el.detachEvent('PlayStateChange', this._onPlayStateChange);
                             }
                             break;
                         case 'loadstart':
                         case 'loadeddata':
                         case 'canplay':
-                            if(!(this._handler['loadstart'] && this._handler['loadstart'].length) &&
-                                !(this._handler['loadeddata'] && this._handler['loadeddata'].length) &&
-                                !(this._handler['canplay'] && this._handler['canplay'].length)){
+                            if(!this._hasOpenStateChange()){
                                 this._el.detachEvent('OpenStateChange', this._onOpenStateChange);
                             }
                             break;
-                        case 'timeupdate':
-                            if(!(this._handler['timeupdate'] && this._handler['timeupdate'].length) &&
-                                !(this._handler['seeked'] && this._handler['seeked'].length)){
-                                this._el.detachEvent('PositionChange', this._onPositionChange);
-                            }
                         case 'canplaythrough':
                         case 'durationchange':
-                            if(!(this._handler['timeupdate'] && this._handler['timeupdate'].length) &&
-                                !(this._handler['canplaythrough'] && this._handler['canplaythrough'].length) &&
-                                !(this._handler['durationchange'] && this._handler['durationchange'].length)){
+                            if(!this._hasPoll()){
                                 this._stopPoll();
                             }
                             break;
@@ -667,6 +685,37 @@ Jx().$package(function(J){
                 _stopPoll : function(){
                     clearInterval(this._timer);
                     delete this._timer;
+                },
+                _hasPositionChange : function(){
+                    return (this._handler['timeupdate'] && this._handler['timeupdate'].length) ||
+                        (this._handler['seeked'] && this._handler['seeked'].length);
+                },
+                _hasBuffering : function(){
+                    return (this._handler['waiting'] && this._handler['waiting'].length) ||
+                        (this._handler['playing'] && this._handler['playing'].length);
+                },
+                _hasPlayStateChange : function(){
+                    return (this._handler['progress'] && this._handler['progress'].length) ||
+                        (this._handler['ended'] && this._handler['ended'].length) ||
+                        (this._handler['play'] && this._handler['play'].length) ||
+                        (this._handler['pause'] && this._handler['pause'].length);
+                },
+                _hasOpenStateChange : function(){
+                    return (this._handler['loadstart'] && this._handler['loadstart'].length) ||
+                        (this._handler['loadeddata'] && this._handler['loadeddata'].length) ||
+                        (this._handler['canplay'] && this._handler['canplay'].length);
+                },
+                _hasPoll : function(){
+                    return (this._handler['timeupdate'] && this._handler['timeupdate'].length) ||
+                        (this._handler['canplaythrough'] && this._handler['canplaythrough'].length) ||
+                        (this._handler['durationchange'] && this._handler['durationchange'].length);
+                }
+            });
+            break;
+        case AUDIO_MODE.NONE:
+            J.Audio = J.Class({extend:BaseAudio},{
+                init : function(option){
+                    J.warn('Audio is not supported','Audio');
                 }
             });
             break;

@@ -339,7 +339,7 @@
 			}
 			if(isPlaying && loop){
 				setPosition(0);
-			}else if(isPlaying && sound.length > channel.position){
+			}else if(isPlaying && sound.length - channel.position > 999){
 				isError = true;
 				onError();
 			}else{
