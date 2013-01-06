@@ -4,6 +4,7 @@
 	<meta charset="UTF-8" />
 	<meta name="author" content="Pel" />
 	<meta name="copyright" content="Tencent.AlloyTeam" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Audio Player from AlloyTeam</title>
 	<style type="text/css">
 		#container{
@@ -19,7 +20,7 @@
 		#title{ white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
 		#track{ width:180px; height: 20px; margin: 10px auto; overflow: hidden; clear:both; background: url(image.jpg) 0 -45px no-repeat; }
 		#range{ display:block; margin:0 auto; padding:0; width:100%; height: 20px; border-width: 0; }
-		#play{ width:45px; height: 45px; border-radius: 27px; overflow: hidden; display:inline-block; position: relative;
+		#play{ width:45px; height: 45px; border-radius: 27px; display:inline-block; position: relative;
 			background: url(image.jpg); box-shadow: 1px 1px 0 rgba(0,0,0,.2);
 		}
 		#play:hover{ top: -1px; box-shadow: 1px 2px 0 rgba(0,0,0,.2); }
@@ -66,7 +67,9 @@
 				if(audioObj){ return; } //如果存在,说明已经初始化
 				if(J.Audio){
 					audioObj = new J.Audio();
-
+					window.audio = audioObj;
+					audioObj._el.controls = true;
+					document.body.appendChild(audioObj._el);
 					for(var i in handlers){
 						audioObj.on(i, handlers[i]);
 					}
