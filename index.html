@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="author" content="Pel" />
+	<meta name="copyright" content="Tencent.AlloyTeam" />
+	<title>Audio Demo</title>
+</head>
+<body>
+	<!-- 注释 Audio Demo -->
+	<h1 id="title" class="title">Audio Demo</h1>
+	<div>
+		<p>等等灯凳...</p>
+	</div>
+
+	<script type="text/javascript" src="http://pub.idqqimg.com/lib/jx/1.0.2/jx.uiless.min.js"></script>
+	<script type="text/javascript" src="jx.audio.min.js"></script>
+	<script type="text/javascript">
+	Jx().$package('test',function(J){
+		// new J.Audio({src:'msg.mp3',loop:true});
+		new J.Audio().play('msg.mp3');
+		/*var audio = new J.Audio();
+		audio.on('canplay',function(){console.log(Date.now(),'canplay')});
+		audio.on('canplaythrough',function(){console.log(Date.now(),'canplaythrough')});
+		audio.on('durationchange',function(){console.log(Date.now(),'durationchange')});
+		audio.on('ended',function(){console.log(Date.now(),'ended')});
+		audio.on('error',function(){console.log(Date.now(),'error')});
+		audio.on('loadeddata',function(){console.log(Date.now(),'loadeddata')});
+		audio.on('loadstart',function(){console.log(Date.now(),'loadstart')});
+		audio.on('pause',function(){console.log(Date.now(),'pause')});
+		audio.on('play',function(){console.log(Date.now(),'play')});
+		audio.on('playing',function(){console.log(Date.now(),'playing')});
+		audio.on('progress',function(){console.log(Date.now(),'progress')});
+		audio.on('seeked',function(){console.log(Date.now(),'seeked')});
+		audio.on('seeking',function(){console.log(Date.now(),'seeking')});
+		audio.on('timeupdate',function(){console.log(Date.now(),'timeupdate')});
+		audio.on('volumechange',function(){console.log(Date.now(),'volumechange')});
+		audio.on('waiting',function(){console.log(Date.now(),'waiting')});
+		audio.play('msg.mp3');*/
+	});
+	</script>
+</body>
+</html>

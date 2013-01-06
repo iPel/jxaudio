@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="author" content="Pel" />
+	<meta name="copyright" content="Tencent.AlloyTeam" />
+	<title>Audio Player from AlloyTeam</title>
+	<style type="text/css">
+		#container{
+			width:180px; border:1px solid #999; background: #bbb; font:12px/150% Simsun,Arial; padding:10px 25px;
+			border-radius: 5px;
+			background-image: -o-linear-gradient(top, #eee, #aaa 10%, #eee 90%);
+			background-image: -moz-linear-gradient(top, #eee, #aaa 10%, #eee 90%);
+			background-image: -webkit-linear-gradient(top, #eee, #aaa 10%, #eee 90%);
+			background-image: -ms-linear-gradient(top, #eee, #aaa 10%, #eee 90%);
+			background-image: linear-gradient(top, #eee, #aaa 10%, #eee 90%);
+		}
+		#time{ float:right; width: 90px; text-align: right; }
+		#title{ white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+		#track{ width:180px; height: 20px; margin: 10px auto; overflow: hidden; clear:both; background: url(image.jpg) 0 -45px no-repeat; }
+		#range{ display:block; margin:0 auto; padding:0; width:100%; height: 20px; border-width: 0; }
+		#play{ width:45px; height: 45px; border-radius: 27px; overflow: hidden; display:inline-block; position: relative;
+			background: url(image.jpg); box-shadow: 1px 1px 0 rgba(0,0,0,.2);
+		}
+		#play:hover{ top: -1px; box-shadow: 1px 2px 0 rgba(0,0,0,.2); }
+		#play:active{ top: 1px; box-shadow: none; }
+		.play{ background-position: -135px 0 !important; }
+		.wait{ background-position: -45px 0 !important; }
+		#volwrap{ float: right; width: 120px; height: 45px; line-height: 45px; text-align: right; }
+		#volume{ width:75px; vertical-align:middle; margin: 0; }
+	</style>
+</head>
+<body>
+	<div id="container">
+		<div id="time">--:-- / --:--</div>
+		<div id="title">Empty</div>
+		<div id="track">
+			<input id="range" type="range" min="0" max="1" step="any" value="0" />
+		</div>
+		<div id="volwrap">
+			音量:<input id="volume" type="range" min="0" max="1" step="0.1" value="0.5" />
+		</div>
+		<a id="play" class="button" href="###"></a>
+	</div>
+	<script type="text/javascript" src="http://pub.idqqimg.com/lib/jx/1.0.2/jx.uiless.min.js"></script>
+	<script type="text/javascript" src="jx.audio.min.js"></script>
+	<script type="text/javascript" src="jx.ui.range.min.js"></script>
+	<script type="text/javascript">
+		if(!window.console){
+			window.console = {
+				info : function(){},
+				log : function(){}
+			};
+		}
+		Jx().$package(function(J){
+			var list = J.dom.mini('input[type=range]');
+			if(list && list[0] && list[0].type !== 'range'){
+				for(var i=0,len=list.length; i<len; i++){
+					J.ui.range.build(list[i]);
+				}
+			}
+			var audioObj,
+				titleEl, timeEl, trackEl, rangeEl, playEl, volumeEl,
+				paused;
+			var init = function(){
+				if(audioObj){ return; } //如果存在,说明已经初始化
+				if(J.Audio){
+					audioObj = new J.Audio();
+
+					for(var i in handlers){
+						audioObj.on(i, handlers[i]);
+					}
+					
+					titleEl = J.dom.id('title');
+					timeEl = J.dom.id('time');
+					trackEl = J.dom.id('track');
+					rangeEl = J.dom.id('range');
+					playEl = J.dom.id('play');
+					volumeEl = J.dom.id('volume');
+					
+					audioObj.setVolume(volumeEl.value);
+					paused = true;
+
+					J.event.on(volumeEl,'change',onVolumeChange);
+					J.event.on(rangeEl,'change',onRangeChange);
+					J.event.on(playEl,'click',onPlayButtonClick);
+				}else{
+					alert('Oops, nice browser.');
+					return;
+				}
+			}
+			var handlers = {
+				play : function(){
+					paused = false;
+					playEl.className = 'play';
+					playEl.title='暂停';
+				},
+				pause : function(){
+					paused = true;
+					playEl.className = '';
+					playEl.title='播放';
+				},
+				ended : function(){
+					paused = true;
+					playEl.className = '';
+					rangeEl.value = 0;
+					playEl.title='播放';
+				},
+				waiting : function(){
+					playEl.className = 'wait';
+					playEl.title='加载中';
+				},
+				playing : function(){
+					playEl.className = 'play';
+					playEl.title='暂停';
+				},
+				error : function(){
+					paused = true;
+					playEl.className = '';
+					rangeEl.value = 0;
+					playEl.title='播放';
+				},
+				timeupdate : function(){
+					var pos = audioObj.getPosition(),
+						buf = audioObj.getBuffered(),
+						dora = audioObj.getDuration();
+					timeEl.innerHTML = formatTime(pos) + ' / ' + formatTime(dora);
+					if(isFinite(dora) && dora > 0){
+						rangeEl.value = pos / dora;
+					}
+					if(isFinite(dora) && dora > 0 && isFinite(buf) && buf > 0){
+						trackEl.style.backgroundPosition = (buf / dora - 1) * 180 +'px -45px';
+					}
+				},
+				progress : function(){
+					var buf = audioObj.getBuffered(),
+						dora = audioObj.getDuration();
+					if(isFinite(dora) && dora > 0 && isFinite(buf) && buf > 0){
+						trackEl.style.backgroundPosition = (buf / dora - 1) * 180 +'px -45px';
+					}
+				}
+			};
+			function loadAudio(url,title){
+				if(!audioObj){ return; }
+				var name=title || url.replace(/^.*\//,'').replace(/[#\?].*$/,'') || 'Unknown';
+				titleEl.innerHTML=name;
+				rangeEl.value=0;
+				// rangeEl.disabled=true;
+				timeEl.innerHTML='--:-- / --:--';
+				playEl.title='加载中';
+				// audioObj.autoplay=true;
+				audioObj.play(url);
+				//audioObj.load();
+				paused = false;
+			}
+			var onVolumeChange = function(){
+				if(!audioObj){ return; }
+				audioObj.setVolume(volumeEl.value);
+			}
+			var onRangeChange = function(){
+				if(!audioObj){ return; }
+				var buf = audioObj.getBuffered(),
+					dora = audioObj.getDuration();
+				if(isFinite(dora) && dora>0){
+					var value = rangeEl.value,
+						pos = value * dora;
+					if(pos > buf){
+						pos = buf;
+					}
+					audioObj.setPosition(pos);
+				}
+			}
+			var onPlayButtonClick = function(){
+				if(!audioObj){ return; }
+				if(paused){
+					audioObj.play();
+				}else{
+					audioObj.pause();
+				}
+			}
+			var formatTime = function(sec){
+				if(!isFinite(sec) || sec < 0){
+					return '--:--';
+				}else{
+					var m = Math.floor(sec / 60),
+						s = Math.floor(sec) % 60;
+					return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+				}
+			}
+			init();
+			loadAudio('laputa.mp3','Laputa');
+		});
+	</script>
+</body>
+</html>
