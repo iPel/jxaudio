@@ -175,10 +175,13 @@
 				}
 			}
 			var onPlayButtonClick = function(){
+				console.log('click');
 				if(!audioObj){ return; }
 				if(paused){
-					audioObj.play();
+					console.log('play');
+					setTimeout(function(){audioObj.play();},0);
 				}else{
+					console.log('pause');
 					audioObj.pause();
 				}
 			}
