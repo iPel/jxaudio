@@ -45,13 +45,17 @@ Jx().$package(function(J){
         NONE : 0,
         NATIVE : 1,
         WMP : 2,
-        FLASH : 3
+        FLASH : 3,
+        MOBILE : 4
     };
     /**
      * @ignore
      */
     var audioModeDetector = function(){
         if(window.Audio && (new Audio).canPlayType('audio/mpeg')){ //支持audio
+            if((/\bmobile\b/i).test(navigator.userAgent)){
+                return AUDIO_MODE.MOBILE;
+            }
             return AUDIO_MODE.NATIVE;
         }else if(J.browser.plugins.flash>=9){ //支持flash控件
             return AUDIO_MODE.FLASH;
@@ -95,8 +99,10 @@ Jx().$package(function(J){
         }
     }();
 
-    switch(audioModeDetector()){
+    var audioMode = audioModeDetector();
+    switch(audioMode){
         case AUDIO_MODE.NATIVE:
+        case AUDIO_MODE.MOBILE:
             var NativeAudio = J.Class({extend:BaseAudio},{
                 init : function(option){
                     option = option || {};
@@ -175,44 +181,50 @@ Jx().$package(function(J){
                     this._el.removeEventListener(event,handler,false);
                 }
             });
-            if(J.platform.iPad || J.platform.iPhone){
-                var playingStack = [];
-                var stackPop = function(){
-                    var len = playingStack.length;
-                    playingStack.pop().off('ended', stackPop);
-                    if(len >= 2){
-                        NativeAudio.prototype.play.call(playingStack[len - 2]);
-                    }
-                };
-                J.Audio = J.Class({extend:NativeAudio},{
-                    init : function(option){
-                        NativeAudio.prototype.init.call(this, option);
-                    },
-                    play : function(url){
-                        var len = playingStack.length;
-                        if(len && playingStack[len - 1] !== this){
-                            // NativeAudio.prototype.pause.call(playingStack[len - 1], url);
-                            var index = J.array.indexOf(playingStack, this);
-                            if(-1 !== index){
-                                playingStack.splice(index, 1);
-                            }else{
-                                this.on('ended', stackPop);
-                            }
-                        }
-                        playingStack.push(this);
-                        NativeAudio.prototype.play.call(this, url);
-                    },
-                    pause : function(){
-                        for(var i = 0, len = playingStack.length; i < len; i++){
-                            playingStack[i].off('ended', stackPop);
-                        }
-                        playingStack = [];
-                        NativeAudio.prototype.pause.call(this);
-                    }
-                });
-            }else{
+            if(audioMode = AUDIO_MODE.NATIVE){
                 J.Audio = NativeAudio;
+                break;
             }
+            var playingStack = [];
+            var stackPop = function(){
+                var len = playingStack.length;
+                playingStack.pop().off('ended', stackPop);
+                if(len >= 2){
+                    playingStack[len - 2]._el.play();
+                }
+            };
+            J.Audio = J.Class({extend:NativeAudio},{
+                init : function(option){
+                    NativeAudio.prototype.init.call(this, option);
+                },
+                play : function(url){
+                    var len = playingStack.length;
+                    if(len && playingStack[len - 1] !== this){
+                        var index = J.array.indexOf(playingStack, this);
+                        if(-1 !== index){
+                            playingStack.splice(index, 1);
+                        }else{
+                            this.on('ended', stackPop);
+                        }
+                    }
+                    playingStack.push(this);
+
+                    if(url){
+                        this._el.src = url;
+                        // this._el.load();
+                    }
+                    if(this._el.paused){
+                        this._el.play();
+                    }
+                },
+                pause : function(){
+                    for(var i = 0, len = playingStack.length; i < len; i++){
+                        playingStack[i].off('ended', stackPop);
+                    }
+                    playingStack = [];
+                    this._el.pause();
+                }
+            });
 
             break;
         case AUDIO_MODE.FLASH :
