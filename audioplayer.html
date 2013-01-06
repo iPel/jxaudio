@@ -41,9 +41,8 @@
 		<div id="volwrap">
 			音量:<input id="volume" type="range" min="0" max="1" step="0.1" value="0.5" />
 		</div>
-		<a id="play" href="###"></a>
+		<a id="play" class="button" href="###"></a>
 	</div>
-	<input type="button" value="ring" onclick="new (Jx().Audio)().play('msg.mp3');" />
 	<script type="text/javascript" src="http://pub.idqqimg.com/lib/jx/1.0.2/jx.uiless.min.js"></script>
 	<script type="text/javascript" src="jx.audio.min.js"></script>
 	<script type="text/javascript" src="jx.ui.range.min.js"></script>
@@ -68,9 +67,7 @@
 				if(audioObj){ return; } //如果存在,说明已经初始化
 				if(J.Audio){
 					audioObj = new J.Audio();
-					window.audio = audioObj;
-					audioObj._el.controls = true;
-					document.body.appendChild(audioObj._el);
+
 					for(var i in handlers){
 						audioObj.on(i, handlers[i]);
 					}
@@ -155,7 +152,6 @@
 				// audioObj.autoplay=true;
 				audioObj.play(url);
 				//audioObj.load();
-				// paused = false;
 			}
 			var onVolumeChange = function(){
 				if(!audioObj){ return; }
@@ -175,13 +171,10 @@
 				}
 			}
 			var onPlayButtonClick = function(){
-				console.log('click');
 				if(!audioObj){ return; }
 				if(paused){
-					console.log('play');
-					setTimeout(function(){audioObj.play();},0);
+					audioObj.play();
 				}else{
-					console.log('pause');
 					audioObj.pause();
 				}
 			}
@@ -194,8 +187,10 @@
 					return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
 				}
 			}
-			init();
-			loadAudio('laputa.mp3','Laputa');
+			window.onload = function(){
+				init();
+				loadAudio('laputa.mp3','Laputa');
+			};
 		});
 	</script>
 </body>
