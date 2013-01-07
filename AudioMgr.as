@@ -24,12 +24,14 @@
 	import flash.utils.Timer;
 	import flash.events.TimerEvent;
 	import flash.events.Event;
+	import flash.system.Security;
 	
 	public class AudioMgr extends Sprite {
 		private var audioList:Array;
 		//public var outputText:TextField;
 		
 		public function AudioMgr() {
+			Security.allowDomain('*');
 			// constructor code
 			// trace('...')
 			//outputText.appendText('...\n');
